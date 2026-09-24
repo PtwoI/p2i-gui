@@ -1,0 +1,9 @@
+export type Graph = 'runtime' | 'export' | 'fx';
+export interface Origin {kind: 'user'|'framework'|'dependency'|'unknown'; package: string|null; package_version: string|null; file: string|null; line_start: number|null; line_end: number|null; module_name: string|null; class_name: string|null}
+export interface Module {id:string; name:string; qualified_name:string; aliases:string[]; class_name:string; module_path:string; parent_id:string|null; children:string[]; origin:Origin; parameter_count:number|null; trainable_parameter_count:number|null; input_tensor_ids:string[]; output_tensor_ids:string[]; executed:boolean; call_ids:string[]}
+export interface Operation {id:string; graph:Graph; op_type:string; display_name:string; parent_module_id:string|null; input_tensor_ids:string[]; output_tensor_ids:string[]; executed:boolean; source:{file:string;line:number|null;function:string|null}|null; call_id:string|null; sequence:number}
+export interface Tensor {id:string;graph:Graph;shape:(number|string|null)[];dtype:string|null;device:string|null;requires_grad:boolean|null;producer_id:string|null;consumer_ids:string[];alias_of:string|null}
+export interface Call {id:string;module_id:string;parent_call_id:string|null;sequence:number;input_tensor_ids:string[];output_tensor_ids:string[];completed:boolean}
+export interface IR {version:string;metadata:{name:string;torch_version:string;training:boolean;analysis:{technique:string;status:string;message:string|null}[];warnings:string[]};modules:Module[];operations:Operation[];tensors:Tensor[];module_edges:{parent_id:string;child_id:string;name:string;shared:boolean}[];data_edges:{tensor_id:string;source_id:string;target_id:string}[];runtime:{calls:Call[];input_tensor_ids:string[];output_tensor_ids:string[]}|null}
+export type Selection = {kind:'module'|'operation'|'tensor';id:string};
+export const shape = (t:Tensor|undefined) => t ? `[${t.shape.map(d=>d??'?').join(', ')}]` : 'Unavailable';
