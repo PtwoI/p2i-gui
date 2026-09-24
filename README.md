@@ -1,15 +1,23 @@
 # p2i-gui
 
-Local, interactive exploration of real PyTorch execution.
+React/TypeScript explorer and local FastAPI bridge for the observed P2I IR.
+This package contains the existing Explore, Computation, Runtime, Edit and
+Skill Library views. The UI shows actual tensor and operation evidence.
 
-## Boundary
+## Local development
 
-React/TypeScript Explore, Compute, Runtime and Edit views; tensor heatmaps, operation microscope and skill library. Owns the local FastAPI bridge and production frontend assets. Views consume actual observed IR and must not invent architecture semantics.
+Install `p2i-core` first, then `python -m pip install -e '.[test]'` in this
+checkout. In `frontend/`, run `npm ci && npm run build`; the build is copied to
+`src/p2i_gui/static` and served by `p2i_gui.serve(ir)` or `p2i.serve(ir)`.
+For frontend development run `npm run dev`, with the API at port 8000.
 
-## Migration status
+```python
+import p2i
+from p2i_gui import serve
+ir = p2i.trace(model, example_inputs=(x,))
+serve(ir)
+```
 
-**Repository initialized; GUI code has not been moved yet.** The working UI lives in [PtwoI/p2i](https://github.com/PtwoI/p2i), under `frontend/` and `src/p2i/server/`. Run that project until extraction retains the single local URL, browser tests and wheel assets.
-
-[p2i-core](https://github.com/PtwoI/p2i-core) owns the analysis and schemas. [p2i-cli](https://github.com/PtwoI/p2i-cli) launches the local server.
-
-MIT licensed.
+The built frontend assets are included in the Python distribution. A user
+installing an already-built wheel does not need Node.js. The Python backend
+delegates all analysis, architecture edits and skill logic to `p2i-core`.
