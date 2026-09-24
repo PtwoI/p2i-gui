@@ -1,0 +1,87 @@
+// Real server, real recorded tensors. Optional recording: P2I_RECORD=1.
+import {chromium,expect} from '@playwright/test';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
+const out='../artifacts/browser';await mkdir(out,{recursive:true});
+const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+const context=await browser.newContext({viewport:{width:1800,height:1200},...(process.env.P2I_RECORD?{recordVideo:{dir:out,size:{width:1800,height:1200}}}:{})});
+const page=await context.newPage(),errors=[],measurements=[];
+page.on('pageerror',e=>errors.push(String(e)));
+try{
+ await page.goto(process.env.P2I_URL??'http://127.0.0.1:8000');
+ await page.getByRole('button',{name:'Explore blocks',exact:true}).click();
+ await page.getByRole('button',{name:'Explore blocks.0',exact:true}).click();
+ await page.getByRole('button',{name:'Runtime',exact:true}).click();
+ await expect(page.locator('.runtime-active')).toHaveCount(1);
+ const initial=await page.locator('.current-call>span').textContent();
+ await page.getByRole('button',{name:'Next',exact:true}).click();
+ await expect(page.locator('.current-call>span')).not.toHaveText(initial);
+ await expect(page.locator('.flow-input,.flow-output').first()).toBeVisible();
+ await page.getByRole('button',{name:'Play',exact:true}).click();
+ await expect(page.locator('.graph-wrap')).toHaveClass(/playing/);
+ await page.getByRole('button',{name:'Pause',exact:true}).click();
+ const stopped=await page.locator('.current-call>span').textContent();
+ await page.waitForTimeout(1200);
+ await expect(page.locator('.current-call>span')).toHaveText(stopped);
+ await page.emulateMedia({reducedMotion:'reduce'});
+ const animation=await page.locator('.flow-input path').last().evaluate(e=>getComputedStyle(e).animationName);
+ expect(animation).toBe('none');
+ await page.getByRole('button',{name:'Restart',exact:true}).click();
+ await expect(page.locator('.current-call>span')).toHaveText(initial);
+ await page.screenshot({path:`${out}/runtime-flow.png`,fullPage:true});
+ await page.getByRole('button',{name:'Computation',exact:true}).click();
+ const node=page.locator('.op-node').first();const label=await node.getAttribute('aria-label');
+ await node.scrollIntoViewIfNeeded();
+ const before=await node.getAttribute('transform'),box=await node.boundingBox();
+ await page.mouse.move(box.x+70,box.y+20);await page.mouse.down();await page.mouse.move(box.x+110,box.y+45,{steps:4});await page.mouse.up();
+ const after=await node.getAttribute('transform');expect(after).not.toBe(before);
+ await page.getByRole('button',{name:'Runtime',exact:true}).click();
+ await page.getByRole('button',{name:'Computation',exact:true}).click();
+ await expect(page.locator('.op-node').filter({has:page.locator('title',{hasText:label})}).first()).toHaveAttribute('transform',after);
+ await page.getByRole('button',{name:'Model root',exact:true}).click();
+ await page.getByRole('button',{name:'Explore',exact:true}).click();
+ await page.getByRole('button',{name:'Explore norm',exact:true}).click();
+ await page.getByRole('button',{name:'Edit',exact:true}).click();
+ // Capture both observations before changing architecture.
+ await page.getByRole('checkbox',{name:/Capture bounded whole-tensor CPU/}).check();
+ await page.getByRole('button',{name:'Build & Re-trace',exact:true}).click();
+ await expect(page.locator('.validation-result')).toContainText('Validation passed');
+ await page.getByLabel('Constructor parameter',{exact:true}).selectOption('eps');
+ await page.getByLabel('Proposed value',{exact:true}).fill('0.001');
+ await page.getByRole('button',{name:'Preview & validate',exact:true}).click();
+ await expect(page.locator('.validation-result')).toContainText('Validation passed');
+ await page.getByRole('button',{name:'Commit edit',exact:true}).click();
+ await page.getByRole('button',{name:'Build & Re-trace',exact:true}).click();
+ await expect(page.locator('.local')).toContainText('observed r1');
+ await page.getByRole('button',{name:'Compare',exact:true}).click();
+ await expect(page.locator('.comparison-side')).toHaveCount(2);
+ await expect(page.locator('.configuration-change')).toContainText('eps');
+ await expect(page.locator('.execution-diff')).toContainText('observed r0');
+ await expect(page.locator('.execution-diff')).toContainText('observed r1');
+ await page.locator('.comparison-side').first().locator('.op-node').first().click();
+ await page.locator('.comparison-side').first().locator('.tensor-stage button').first().click();
+ await expect(page.locator('.comparison-side').first()).toContainText('producer_id');
+ await page.screenshot({path:`${out}/observed-comparison.png`,fullPage:true});
+ await page.getByRole('button',{name:'Model root',exact:true}).click();
+ await page.getByRole('button',{name:'Computation',exact:true}).click();
+ await expect(page.locator('.heatmap').first()).toBeVisible();
+ await expect(page.locator('.heatmap-cell').first()).toBeEnabled();
+ await expect(page.locator('.grid-description').first()).toContainText('Original shape');
+ await expect(page.locator('.heatmap-legend').first()).toBeVisible();
+ await page.screenshot({path:`${out}/operation-microscope.png`,fullPage:true});
+ // Large fixtures were emitted by the actual Phase 1 tracer, not graph templates.
+ for(const size of [500,1000,3000]){
+  const fixture=JSON.parse(await readFile(`../artifacts/performance/graph-${size}.json`,'utf8'));
+  await page.route('**/api/model',r=>r.fulfill({json:fixture}));
+  const start=performance.now();await page.reload();await page.getByRole('button',{name:'Computation',exact:true}).click();
+  await expect(page.locator('.operation-explainer')).toBeVisible();
+  const renderMs=performance.now()-start;expect(await page.locator('.op-node').count()).toBeLessThanOrEqual(7);
+  await page.getByRole('button',{name:'Runtime',exact:true}).click();
+  const next=performance.now();await page.getByRole('button',{name:'Next',exact:true}).click();
+  await expect(page.locator('.runtime-controls')).toContainText(`Step 2 / ${size}`);
+  measurements.push({operations:size,loadAndComputeMs:renderMs,nextStepMs:performance.now()-next});
+  await page.unroute('**/api/model');
+ }
+ expect(errors).toEqual([]);
+ await writeFile(`${out}/performance.json`,JSON.stringify({browser:browser.version(),viewport:[1800,1200],notes:'Single local browser pass; includes network and Playwright wait overhead, not a performance guarantee.',measurements},null,2));
+ console.log('PASS microscope: actual operation playback, pause/restart, reduced motion, drag persistence, whole-tensor grids, observed comparison, 500/1000/3000-op local exploration');
+}finally{await context.close();await browser.close()}
