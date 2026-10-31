@@ -93,7 +93,10 @@ def create_app(ir):
         for key in ('backward','capture_values'):
             if key in body and type(body[key]) is not bool:raise HTTPException(422,f'{key} must be boolean')
         try:
-            if command in ('preview','apply'):result=getattr(harness,command)(body).model_dump(mode='json')
+            if command=='plan':
+                if not all(key in body for key in ('target','parameter','value')):raise ValueError('Plan requires target, parameter and value')
+                result=harness.plan_edit(body['target'],body['parameter'],body['value'],expected_revision=body.get('expected_revision'))
+            elif command in ('preview','apply'):result=getattr(harness,command)(body).model_dump(mode='json')
             elif command=='validate':result=harness.validate(backward=body.get('backward',False)).model_dump(mode='json')
             elif command in ('undo','redo'):result=getattr(harness,command)(expected_revision=body.get('expected_revision'))
             elif command=='retrace':

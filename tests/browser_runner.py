@@ -12,7 +12,7 @@ from urllib.request import urlopen
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', choices=['mlp', 'cnn', 'transformer'], default='transformer')
+    parser.add_argument('--model', choices=['mlp', 'cnn', 'transformer', 'rnn', 'lstm', 'gru'], default='transformer')
     parser.add_argument('--scripts', nargs='+', default=['phase2', 'checkpoint', 'ux'])
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]

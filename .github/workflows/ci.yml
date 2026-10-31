@@ -38,9 +38,12 @@ jobs:
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
       - run: |
-          python tests/browser_runner.py --model mlp
-          python tests/browser_runner.py --model cnn
+          python tests/browser_runner.py --model mlp --scripts phase2 checkpoint ux guided
+          python tests/browser_runner.py --model cnn --scripts phase2 checkpoint ux guided
           python tests/browser_runner.py --model transformer --scripts phase2 checkpoint ux phase3 explorer microscope
+          python tests/browser_runner.py --model rnn --scripts guided
+          python tests/browser_runner.py --model lstm --scripts guided
+          python tests/browser_runner.py --model gru --scripts guided
       - uses: actions/upload-artifact@v4
         if: always()
         with:

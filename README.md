@@ -64,3 +64,22 @@ python tests/browser_runner.py --model cnn
 
 Each browser flow starts a fresh real backend. The default suite checks
 exploration/editing, checkpoint download/upload, and runtime/tensor views.
+
+## Guided and batch editing (0.4.2)
+
+Constructor edits can include connected dimensions in Sequential containers.
+Preview shows the proposed downstream changes and explains where automatic
+suggestions stop. **Batch edit without JSON** lets you select multiple modules,
+parameters and typed values, then validate and commit them as one revision.
+Changing a draft invalidates its preview; commit submits exactly the previewed
+proposal. Advanced structural actions remain available through JSON.
+
+Try the new offline recurrent demos with `p2i demo rnn --edit`, `p2i demo lstm
+--edit` or `p2i demo gru --edit`. To change recurrent hidden width, add rows for
+`recurrent.hidden_size` and `head.in_features` before previewing. Their tuple
+outputs remain visible in runtime inspection and checkpoints reopen independently.
+
+`python tests/browser_runner.py --model lstm --scripts guided` checks the
+no-JSON batch, failed partial edit, preview invalidation, commit, checkpoint
+restore and backward validation. `--model mlp --scripts guided` and `--model
+cnn --scripts guided` exercise connected dimension suggestions.
