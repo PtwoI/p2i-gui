@@ -51,3 +51,5 @@
 
 .checkpoint-panel{margin-top:24px;padding:20px;border:1px solid var(--border,#d7dce3);border-radius:12px;background:var(--panel,#fff)}
 .checkpoint-panel h3{margin-top:0}.checkpoint-panel p{max-width:75ch;line-height:1.6}.checkpoint-panel label{display:flex;align-items:center;gap:8px}.checkpoint-panel [role=alert]{color:#ae2636}
+
+.batch-editor{padding:12px 0}.batch-row{display:flex;flex-wrap:wrap;gap:12px;border:1px solid var(--border,#ccd3db);border-radius:8px;margin:12px 0;padding:12px}.batch-row label{display:flex;flex-direction:column;gap:6px;flex:1;min-width:130px}.batch-row select,.batch-row input{max-width:100%;min-width:0;width:100%}.batch-row button{align-self:end}.edit-plan{padding:10px 14px;border-left:3px solid #087f8c;background:#087f8c10}.edit-plan p{margin:6px 0}

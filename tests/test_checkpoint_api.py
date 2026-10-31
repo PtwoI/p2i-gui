@@ -77,3 +77,35 @@ def test_inputs_can_be_omitted_for_python_only_export():
                            headers={'Content-Type': 'application/octet-stream'})
     assert response.status_code == 422
     assert 'example_inputs' in response.json()['detail']
+
+
+def test_dimension_plan_preview_apply_and_stale_rejection():
+    harness = p2i.Harness(nn.Sequential(nn.Linear(4, 8), nn.ReLU(), nn.Linear(8, 2)),
+                          example_inputs=(torch.ones(2, 4),))
+    client = TestClient(create_app(harness))
+    plan = client.post('/api/harness/plan', json={
+        'target': '0', 'parameter': 'out_features', 'value': 6, 'expected_revision': 0,
+    }).json()['result']
+    assert len(plan['action']['actions']) == 2
+    assert client.get('/api/harness').json()['summary']['revision'] == 0
+    assert client.post('/api/harness/preview', json=plan['action']).json()['result']['success']
+    assert client.post('/api/harness/apply', json=plan['action']).json()['result']['committed']
+    assert not client.post('/api/harness/apply', json=plan['action']).json()['result']['success']
+    assert not client.post('/api/harness/plan', json={}).json()['result']['success']
+    assert client.post('/api/harness/validate', json={'backward': True}).json()['result']['backward_valid']
+
+
+@pytest.mark.parametrize('name', ['rnn', 'lstm', 'gru'])
+def test_recurrent_checkpoint_api(name):
+    model, inputs = make_demo(name)
+    client = TestClient(create_app(p2i.Harness(model, example_inputs=inputs)))
+    changes = {'type': 'batch', 'actions': [
+        {'type': 'set_parameter', 'target': 'recurrent', 'parameter': 'hidden_size', 'value': 12},
+        {'type': 'set_parameter', 'target': 'head', 'parameter': 'in_features', 'value': 12},
+    ]}
+    assert client.post('/api/harness/apply', json=changes).json()['result']['committed']
+    data = client.post('/api/checkpoint/export', json={}).content
+    restored = client.post('/api/checkpoint/import', content=data,
+                           headers={'Content-Type': 'application/octet-stream'})
+    assert restored.status_code == 200, restored.text
+    assert client.post('/api/harness/validate', json={'backward': True}).json()['result']['backward_valid']
