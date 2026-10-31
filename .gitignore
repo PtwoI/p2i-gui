@@ -141,3 +141,14 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Generated local browser fixtures and downloaded checkpoints
+artifacts/
+docs/*.p2i
+docs/*.png
+frontend/.unit/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+build/
+dist/
