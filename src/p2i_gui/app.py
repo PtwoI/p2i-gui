@@ -1,7 +1,7 @@
 from pathlib import Path
 from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from p2i.ir import ModelIR
 
@@ -16,6 +16,54 @@ def create_app(ir):
     def state():
         if not harness:return {'enabled':False}
         return {'enabled':True,'summary':harness.observe(),'architecture':harness.observe(level='architecture'),'history':harness.history(),'observed_configuration':harness.observed_configuration}
+    def same_origin(request):
+        origin=request.headers.get('origin')
+        if origin and urlparse(origin).netloc!=request.headers.get('host'):
+            raise HTTPException(403,'Cross-origin checkpoint requests are not allowed')
+    @app.post('/api/checkpoint/export')
+    async def export_checkpoint(request:Request):
+        same_origin(request)
+        if not harness:raise HTTPException(409,'Checkpoint export requires a live Harness session')
+        if 'application/json' not in request.headers.get('content-type',''):
+            raise HTTPException(415,'Use application/json')
+        try:body=await request.json()
+        except Exception:raise HTTPException(422,'Invalid JSON request')
+        if not isinstance(body,dict) or type(body.get('include_inputs',True)) is not bool:
+            raise HTTPException(422,'include_inputs must be boolean')
+        from p2i.checkpoint import checkpoint_bytes
+        try:
+            with harness._lock:
+                if body.get('expected_revision') is not None and body['expected_revision']!=harness.architecture().revision:
+                    raise HTTPException(409,'Stale revision; refresh before exporting')
+                data=checkpoint_bytes(harness,include_inputs=body.get('include_inputs',True))
+                revision=harness.architecture().revision
+            return Response(data,media_type='application/octet-stream',headers={
+                'Content-Disposition':f'attachment; filename="model-r{revision}.p2i"',
+                'Cache-Control':'no-store'})
+        except (ValueError,RuntimeError) as exc:raise HTTPException(422,str(exc))
+    @app.post('/api/checkpoint/import')
+    async def import_checkpoint(request:Request):
+        nonlocal harness
+        same_origin(request)
+        if request.headers.get('content-type','').split(';')[0]!='application/octet-stream':
+            raise HTTPException(415,'Use application/octet-stream')
+        # Bound reads while streaming; a failed load leaves the active session intact.
+        chunks=[];size=0
+        async for chunk in request.stream():
+            size+=len(chunk)
+            if size>256*1024*1024:raise HTTPException(413,'Checkpoint upload exceeds 256 MiB')
+            chunks.append(chunk)
+        from p2i.checkpoint import load_checkpoint
+        try:
+            candidate=load_checkpoint(b''.join(chunks),
+                model=harness._model if harness else None,
+                registry=harness.registry if harness else None,
+                skill_registry=harness._skill_registry if harness else None)
+            candidate.retrace()
+        except (ValueError,RuntimeError,KeyError,TypeError,AttributeError) as exc:
+            raise HTTPException(422,str(exc))
+        harness=candidate
+        return {'result':{'success':True,'model':harness.latest_ir.model_dump(mode='json')},'state':state()}
     @app.get('/api/model')
     async def model():return observed().model_dump(mode='json')
     @app.get('/api/modules')

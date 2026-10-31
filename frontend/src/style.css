@@ -48,3 +48,6 @@
 .tensor-sample .heatmap-metadata summary{cursor:pointer}
 .tensor-sample .heatmap-metadata p{margin-top:8px}
 @media(max-width:980px){.operation-explainer .operation-flow{grid-template-columns:minmax(0,1fr);justify-items:center}.operation-explainer .operation-tensors{max-width:440px}.operation-explainer .flow-arrow{transform:rotate(90deg)}.operation-explainer .operation-symbol{max-width:96px}}
+
+.checkpoint-panel{margin-top:24px;padding:20px;border:1px solid var(--border,#d7dce3);border-radius:12px;background:var(--panel,#fff)}
+.checkpoint-panel h3{margin-top:0}.checkpoint-panel p{max-width:75ch;line-height:1.6}.checkpoint-panel label{display:flex;align-items:center;gap:8px}.checkpoint-panel [role=alert]{color:#ae2636}
