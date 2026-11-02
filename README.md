@@ -83,3 +83,20 @@ outputs remain visible in runtime inspection and checkpoints reopen independentl
 no-JSON batch, failed partial edit, preview invalidation, commit, checkpoint
 restore and backward validation. `--model mlp --scripts guided` and `--model
 cnn --scripts guided` exercise connected dimension suggestions.
+
+## Bounded evidence transport (0.4.3)
+
+The viewer reads `/api/model/manifest`, then `/api/evidence/{kind}` pages with
+at most 500 records and three concurrent requests. Loading progress is visible
+and unmount cancels outstanding requests. Every page carries one snapshot ID;
+a retrace/import during loading returns HTTP 409 so observations cannot mix.
+Supported collections are modules, operations, tensors, module_edges,
+data_edges and calls. `/api/model` remains available for existing clients.
+
+The backend still retains the observed IR in memory, and the viewer eventually
+assembles its graph in memory. Paging bounds individual responses and provides
+cancelable loading; it is not an out-of-core model tracing implementation.
+
+The connected-edit option now covers supported ResNet/BERT/ViT architecture
+rules as well as Sequential containers. Their proposed changes remain visible
+in Preview before Commit.
