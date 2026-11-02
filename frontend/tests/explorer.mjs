@@ -1,3 +1,4 @@
+import {mockModelPages} from './fixturePages.mjs';
 // Run against: p2i serve tiny_transformer.json --port 8000
 import { chromium, expect } from '@playwright/test';
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
@@ -47,6 +48,7 @@ try{
  const runtime=fixture.operations.filter(o=>o.graph==='runtime');
  fixture.operations=Array.from({length:12},(_,i)=>runtime.map(o=>({...o,id:`large${i}_${o.id}`}))).flat();
  fixture.data_edges=[];
+ await mockModelPages(page,fixture);
  await page.route('**/api/model',route=>route.fulfill({json:fixture}));
  await page.reload();
  await page.getByRole('button',{name:'Computation',exact:true}).click();

@@ -28,7 +28,7 @@ try {
  } else {
   await page.getByLabel('Constructor parameter',{exact:true}).selectOption(model==='cnn'?'out_channels':'out_features');
   await page.getByLabel('Proposed value',{exact:true}).fill('6');
-  await expect(page.getByLabel('Include connected dimensions in Sequential containers',{exact:true})).toBeChecked();
+  await expect(page.getByLabel('Include connected dimensions in supported architectures',{exact:true})).toBeChecked();
  }
  await page.getByRole('button',{name:'Preview & validate',exact:true}).click();
  await expect(page.locator('.validation-result')).toContainText('Validation passed');

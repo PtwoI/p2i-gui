@@ -1,3 +1,4 @@
+import {mockModelPages} from './fixturePages.mjs';
 // Real server, real recorded tensors. Optional recording: P2I_RECORD=1.
 import {chromium,expect} from '@playwright/test';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
@@ -71,7 +72,8 @@ try{
  // Large fixtures were emitted by the actual Phase 1 tracer, not graph templates.
  for(const size of [500,1000,3000]){
   const fixture=JSON.parse(await readFile(`../artifacts/performance/graph-${size}.json`,'utf8'));
-  await page.route('**/api/model',r=>r.fulfill({json:fixture}));
+  await mockModelPages(page,fixture);
+ await page.route('**/api/model',r=>r.fulfill({json:fixture}));
   const start=performance.now();await page.reload();await page.getByRole('button',{name:'Computation',exact:true}).click();
   await expect(page.locator('.operation-explainer')).toBeVisible();
   const renderMs=performance.now()-start;expect(await page.locator('.op-node').count()).toBeLessThanOrEqual(7);
@@ -80,6 +82,8 @@ try{
   await expect(page.locator('.runtime-controls')).toContainText(`Step 2 / ${size}`);
   measurements.push({operations:size,loadAndComputeMs:renderMs,nextStepMs:performance.now()-next});
   await page.unroute('**/api/model');
+  await page.unroute('**/api/model/manifest');
+  await page.unroute('**/api/evidence/**');
  }
  expect(errors).toEqual([]);
  await writeFile(`${out}/performance.json`,JSON.stringify({browser:browser.version(),viewport:[1800,1200],notes:'Single local browser pass; includes network and Playwright wait overhead, not a performance guarantee.',measurements},null,2));

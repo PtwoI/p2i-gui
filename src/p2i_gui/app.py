@@ -16,6 +16,8 @@ def create_app(ir):
     def state():
         if not harness:return {'enabled':False}
         return {'enabled':True,'summary':harness.observe(),'architecture':harness.observe(level='architecture'),'history':harness.history(),'observed_configuration':harness.observed_configuration}
+    from .paging import install_evidence_routes
+    install_evidence_routes(app, observed)
     def same_origin(request):
         origin=request.headers.get('origin')
         if origin and urlparse(origin).netloc!=request.headers.get('host'):
